@@ -1,0 +1,41 @@
+html, body{
+  min-height:100vh;
+  margin: 0;
+  min-width: 100vh;
+}
+#main{
+  height: 100%;
+}
+#header{
+  text-align: center;
+  margin-bottom: 6em;
+  padding-top: 2em;
+  padding-bottom: 2em;
+  color: white;
+  background: #DA22FF;  /* fallback for old browsers */
+  background: -webkit-linear-gradient(to top, #9733EE, #DA22FF);  /* Chrome 10-25, Safari 5.1-6 */
+  background: linear-gradient(to top, #9733EE, #DA22FF); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+
+}
+#tittle{
+  font-size: 3em;
+  margin-left: 1em;
+}
+#luz{
+  padding-top: 1em;
+}
+#col{
+  margin-top: 2em;
+  display: flex;
+  justify-content: center;
+}
+#resp{
+  margin-top: 5em;
+  text-align: center;
+}
+#result{
+  font-size: 2ch;
+}
+#send1{
+  margin-right: 10px;
+}
