@@ -1,111 +1,232 @@
-import React, {useState} from 'react';
-import { Button, CustomProvider, Content, Container, Toggle,Grid, Row, Col, Input, Divider, Message, toaster} from 'rsuite';
-import axios from 'axios';
-import 'rsuite/dist/rsuite.min.css'; 
-import './App.css';
+import React, { useState } from "react";
+import {
+  Button,
+  CustomProvider,
+  Container,
+  Toggle,
+  Grid,
+  Row,
+  Col,
+  Notification,
+  Input,
+  Divider,
+} from "rsuite";
+import { setDoc, getDoc, doc } from "firebase/firestore";
+import { db } from "./firebaseConfig"; // Import db
+import "rsuite/dist/rsuite.min.css";
+import "./App.css";
+import whiteBackground from "./Assets/b.jpg";
+import DarkBackground from "./Assets/v1.jpg";
 function App() {
-  const URI = 'http://localhost:8000/generate'
-  const [theme, setTheme]=useState('light')
-  const [oldLink, setOldLink]=useState('')
-  const [newLink, setNewLink]=useState('')
-  const [resolve, setResolve]=useState(false)
-  const [show, setShow]=useState(false)
-  const [type,setType]=useState(false)
-  const url='https://www.youtube.com/'
-  const reset=()=>{
-    setOldLink('')
-    setShow(false)
-    setNewLink('')
-    setOldLink('')
-    setType(false)
-    document.getElementById('old').value=''
-  }
-  const convert=async()=>{
-    if (oldLink!=="") {
-      setResolve(true)
-      try {
-        const response = await axios.post(URI, {
-            link:oldLink
-            }) 
-        setTimeout(() => {
-          setResolve(false)
-          setShow(true)
-          setNewLink(response.data.newLink) 
-          setType(true)
-        }, 500);  
-      } catch (error) {
-          console.log(error)
-          alert('something bad happen in the server')
-      } 
-    } else {
-      setType(false)
-      toaster.push(noti, {value: 'bottomCenter' })
-    }
-  }
-  const copy=()=>{
-    navigator.clipboard.writeText(newLink)
-    setType(true)
-    toaster.push(noti, {value: 'bottomCenter' })
-  }
-  const noti = (
-    <Message showIcon type={type===true?('success'):('error')}>
-     {type===true?('Copied'):('The input is empty')}
-    </Message>
+  const [theme, setTheme] = useState(
+    //get actual theme
+    JSON.parse(localStorage.getItem("darkMode"))
   );
-  const example=()=>{
-    setOldLink(url)
-    document.getElementById('old').value=url
+  const [oldLink, setOldLink] = useState("");
+  const [newLink, setNewLink] = useState("");
+  const [resolve, setResolve] = useState(false);
+  const [showResult, setShowResult] = useState(false);
+  const [status, Setstatus] = useState(0); //0: nothing, 1:success, 2:error
+
+  //get page from databse
+  const resolveLink = async (code) => {
+    const docRef = doc(db, "links", code);
+    const docSnap = await getDoc(docRef);
+    console.log(docSnap.data(["URL"]));
+    if (docSnap.data(["URL"])) {
+      window.location.replace(docSnap.data()["URL"], "_blank");
+    } else {
+      alert("code doesn't exist");
+    }
+  };
+
+  //try to valid link before load the webpage
+  const code = window.location.pathname.substring(1);
+  if (code !== "") {
+    resolveLink(code);
   }
+
+  function nextID(lastID) {
+    // Si el último ID es null o vacío, regresar el primer ID posible
+    if (!lastID) return "AAAAAA";
+    // Convertir el último ID a un array de caracteres
+    let idArray = lastID.split("");
+    // Iterar sobre cada posición del ID de derecha a izquierda
+    for (let i = idArray.length - 1; i >= 0; i--) {
+      // Si la posición actual es una letra
+      if (/[A-Y]/.test(idArray[i])) {
+        // Incrementar la letra
+        idArray[i] = String.fromCharCode(idArray[i].charCodeAt(0) + 1);
+        break; // Salir del ciclo, hemos terminado
+      } else if (idArray[i] === "Z") {
+        // Si la posición actual es Z, cambiarla a 0 y seguir iterando
+        idArray[i] = "0";
+      } else if (/[0-9]/.test(idArray[i])) {
+        // Si la posición actual es un número del 0 al 8, incrementarlo
+        idArray[i] = String(Number(idArray[i]) + 1);
+        break; // Salir del ciclo, hemos terminado
+      }
+    }
+    // Unir los caracteres del array para formar el nuevo ID
+    return idArray.join("");
+  }
+
+  const convertLink = async () => {
+    setResolve(true);
+    if (oldLink === "") {
+      alert("please type any link in the text box")       
+      setResolve(false);   
+      return false;
+    }
+    try {
+      const docRef = doc(db, "lastUsed", "Main");
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        let newCode = nextID(docSnap.data()["ID"]);
+        setDoc(doc(db, "links", newCode), {
+          URL: oldLink,
+        });
+        setDoc(doc(db, "lastUsed", "Main"), {
+          ID: newCode,
+        });
+        setShowResult(true);
+        setNewLink(window.location.hostname + "/" + newCode);
+        //setNewLink("http://localhost:3000/" + newCode);
+        setResolve(false);
+        showStatus(1)
+      } else {
+        console.log(docSnap.data()["ID"]);
+        console.log("No such document!");
+        showStatus(2)
+        setResolve(false);
+      }
+    } catch (error) {
+      console.log(error);
+      setResolve(false);
+      showStatus(2)
+    }
+  };
+
+  const copy = () => {
+    navigator.clipboard.writeText(newLink);
+  };
+  const backgroundMode = () => {
+    if (theme === "light") {
+      setTheme("dark");
+      localStorage.setItem("darkMode", JSON.stringify("dark"));
+    } else {
+      setTheme("light");
+      localStorage.setItem("darkMode", JSON.stringify("light"));
+    }
+  };
+  const reset = () => {
+    setOldLink("");
+    setShowResult(false);
+    setNewLink("");
+    setResolve(false);
+    setOldLink("");
+    document.getElementById("old").value = "";
+  };
+  const showStatus = (typeStatus) => {
+    Setstatus(typeStatus);    
+    setTimeout(() => Setstatus(0), 2000);
+  };
   return (
     <CustomProvider theme={theme}>
-      <Container>
-        <Content id="main">
-          <Grid fluid id="header">
-            <Row className="show-grid">
-              <Col xs={22} xsOffset={1} sm={20}>
-                <p id="tittle">URL-Shorter</p>
-              </Col>
-              <Col xs={24} sm={2} id="luz">
-                <Toggle 
-                size="lg" 
-                checkedChildren="Dark" 
+      <Container
+        id="main"
+        style={{
+          backgroundImage:
+            String(theme) === "light"
+              ? `url(${whiteBackground})`
+              : `url(${DarkBackground})`,
+        }}
+      >
+        {(status!==0) && (
+          <Notification
+            id="notification"
+            type={status===1?("success"):("error")}
+            header={`Operation(${status===1?"successful":"failed"})`}
+          >
+            {status===1?("The link has shorter successfully, please check take it."):("The proccess has failed, please contact the webpage owner.")}
+          </Notification>
+        )}
+        <Grid id="Content">
+          <Row className="show-grid">
+            <Col xs={22} xsOffset={1} sm={20}>
+              <p id="tittle">URL-Shorterner</p>
+            </Col>
+            <Col xs={24} sm={2} id="light">
+              <Toggle
+                size="lg"
+                checkedChildren="Dark"
                 unCheckedChildren="Light"
-                onClick={()=>String(theme)==="light"?(setTheme('dark')):(setTheme('light'))}/>
-              </Col>
-            </Row>
-          </Grid>
-          <Grid fluid>
-            <Row className="show-grid">
-              <Col xs={20} xsOffset={2} smOffset={3} sm={12} md={13} id="col">
-              <Input 
-                id='old'
-                type='text' 
-                placeholder="Insert link to convert" 
-                size='lg'  
-                onChange={value=>{setOldLink(value)}}
+                checked={theme === "light"}
+                onClick={() => backgroundMode()}
               />
-              </Col>
-              <Col xs={24} sm={9} md={6} id="col">
-              <Button id="send1" color="blue" appearance="primary" size='lg' onClick={convert} loading={resolve}>Convert</Button>
-              <Button id="send" color="orange" appearance="primary" size='lg' onClick={example} loading={resolve}>Example?</Button>
-              </Col>
-            </Row>
-            <Row className="show-grid" id="resp" hidden={show===false?(true):(false)} >
+            </Col>
+          </Row>
+          <Row className="show-grid">
+            <Col xs={20} xsOffset={2} smOffset={3} sm={12} md={13} id="col">
+              <Input
+                id="old"
+                type="text"
+                placeholder="Insert link to convert"
+                size="lg"
+                onChange={(value) => {
+                  setOldLink(value);
+                }}
+              />
+            </Col>
+            <Col xs={24} sm={9} md={6} id="col">
+              <Button
+                id="send1"
+                color="blue"
+                appearance="primary"
+                size="lg"
+                onClick={() => convertLink()}
+                loading={resolve}
+              >
+                Convert
+              </Button>
+            </Col>
+          </Row>
+          <Row
+            className="show-grid"
+            id="resp"
+            hidden={showResult === false ? true : false}
+          >
             <Divider />
             <h1>Result:</h1>
-              <Col xs={20} xsOffset={2} smOffset={8} sm={8} id="col">
-                <a id='result' href={newLink}>{newLink}</a>
-              </Col>
-              <Col xs={12} smOffset={6} sm={6} id="col">
-              <Button id="send" color="green" appearance="primary" size='lg' onClick={reset}>Reset</Button>
-              </Col>
-              <Col xs={12} sm={6} id="col">
-              <Button id="send" color="orange" appearance="primary" size='lg' onClick={copy}>copy</Button>
-              </Col>
-            </Row>
-          </Grid>
-         
-        </Content>
+            <Col xs={20} xsOffset={2} smOffset={8} sm={8} id="col">
+              <a id="result" href={newLink}>
+                {newLink}
+              </a>
+            </Col>
+            <Col xs={12} smOffset={6} sm={6} id="col">
+              <Button
+                id="send"
+                color="green"
+                appearance="primary"
+                size="lg"
+                onClick={reset}
+              >
+                New Code
+              </Button>
+            </Col>
+            <Col xs={12} sm={6} id="col">
+              <Button
+                id="send"
+                color="orange"
+                appearance="primary"
+                size="lg"
+                onClick={copy}
+              >
+                copy
+              </Button>
+            </Col>
+          </Row>
+        </Grid>
       </Container>
     </CustomProvider>
   );
