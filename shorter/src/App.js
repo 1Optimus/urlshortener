@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Button,
   CustomProvider,
@@ -17,7 +17,11 @@ import "rsuite/dist/rsuite.min.css";
 import "./App.css";
 import whiteBackground from "./Assets/b.jpg";
 import DarkBackground from "./Assets/v1.jpg";
+import LoadingOverlay from './overlay';
+
 function App() {
+
+  const [isLoading, setIsLoading] = useState(true);
   const [theme, setTheme] = useState(
     //get actual theme
     JSON.parse(localStorage.getItem("darkMode"))
@@ -27,25 +31,27 @@ function App() {
   const [resolve, setResolve] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [status, Setstatus] = useState(0); //0: nothing, 1:success, 2:error
-
+  
   //get page from databse
   const resolveLink = async (code) => {
     const docRef = doc(db, "links", code);
     const docSnap = await getDoc(docRef);
     console.log(docSnap.data(["URL"]));
     if (docSnap.data(["URL"])) {
-      window.location.replace(docSnap.data()["URL"], "_blank");
+      window.location.replace(docSnap.data()["URL"], "_blank");      
     } else {
       alert("code doesn't exist");
+      setIsLoading(false)
     }
   };
 
-  //try to valid link before load the webpage
+/*   //try to valid link before load the webpage
   const code = window.location.pathname.substring(1);
   if (code !== "") {
     resolveLink(code);
+    setIsLoading(true)
   }
-
+ */
   function nextID(lastID) {
     // Si el último ID es null o vacío, regresar el primer ID posible
     if (!lastID) return "AAAAAA";
@@ -90,8 +96,8 @@ function App() {
           ID: newCode,
         });
         setShowResult(true);
-        setNewLink(window.location.hostname + "/" + newCode);
-        //setNewLink("http://localhost:3000/" + newCode);
+        //setNewLink(window.location.hostname + "/" + newCode);
+        setNewLink("http://localhost:3000/" + newCode);
         setResolve(false);
         showStatus(1)
       } else {
@@ -131,8 +137,20 @@ function App() {
     Setstatus(typeStatus);    
     setTimeout(() => Setstatus(0), 2000);
   };
+  useEffect(() => {
+   //try to valid link before load the webpage
+   const code = window.location.pathname.substring(1);
+   if (code !== "") {
+     resolveLink(code);
+     setIsLoading(true)
+   }else{
+    setIsLoading(false)
+   }
+ 
+  }, []);
   return (
     <CustomProvider theme={theme}>
+      {isLoading && <LoadingOverlay />}
       <Container
         id="main"
         style={{
@@ -161,7 +179,7 @@ function App() {
                 size="lg"
                 checkedChildren="Dark"
                 unCheckedChildren="Light"
-                checked={theme === "light"}
+                checked={theme !== "light"}
                 onClick={() => backgroundMode()}
               />
             </Col>
