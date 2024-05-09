@@ -45,13 +45,6 @@ function App() {
     }
   };
 
-/*   //try to valid link before load the webpage
-  const code = window.location.pathname.substring(1);
-  if (code !== "") {
-    resolveLink(code);
-    setIsLoading(true)
-  }
- */
   function nextID(lastID) {
     // Si el último ID es null o vacío, regresar el primer ID posible
     if (!lastID) return "AAAAAA";
@@ -96,8 +89,8 @@ function App() {
           ID: newCode,
         });
         setShowResult(true);
-        //setNewLink(window.location.hostname + "/" + newCode);
-        setNewLink("http://localhost:3000/" + newCode);
+        setNewLink(window.location.hostname + "/" + newCode);
+        //setNewLink("http://localhost:3000/" + newCode);
         setResolve(false);
         showStatus(1)
       } else {
