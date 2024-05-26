@@ -17,31 +17,32 @@ import "rsuite/dist/rsuite.min.css";
 import "./App.css";
 import whiteBackground from "./Assets/b.jpg";
 import DarkBackground from "./Assets/v1.jpg";
-import LoadingOverlay from './overlay';
+import LoadingOverlay from "./overlay";
 
 function App() {
-
   const [isLoading, setIsLoading] = useState(true);
   const [theme, setTheme] = useState(
     //get actual theme
     JSON.parse(localStorage.getItem("darkMode"))
   );
+  const [iscustom, setIsCustm] = useState("false");
+  const [custom, setcustm] = useState("");
   const [oldLink, setOldLink] = useState("");
   const [newLink, setNewLink] = useState("");
   const [resolve, setResolve] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [status, Setstatus] = useState(0); //0: nothing, 1:success, 2:error
-  
-  //get page from databse
+
+  //get page/link from databse
   const resolveLink = async (code) => {
-    const docRef = doc(db, "links", code);
+    let linkCustom=window.location.pathname.substring(1).includes('-')
+    const docRef = doc(db, (linkCustom===false?("links"):("linksCustom")), (linkCustom===false?(window.location.pathname.substring(1)):(window.location.pathname.substring(2))));
     const docSnap = await getDoc(docRef);
-    console.log(docSnap.data(["URL"]));
     if (docSnap.data(["URL"])) {
-      window.location.replace(docSnap.data()["URL"], "_blank");      
+      window.location.replace(docSnap.data()["URL"], "_blank");
     } else {
       alert("code doesn't exist");
-      setIsLoading(false)
+      setIsLoading(false);
     }
   };
 
@@ -71,38 +72,70 @@ function App() {
   }
 
   const convertLink = async () => {
-    setResolve(true);
+    // setResolve(true);
     if (oldLink === "") {
-      alert("please type any link in the text box")       
-      setResolve(false);   
+      alert("Please type any link in the text box");
+      setResolve(false);
       return false;
     }
-    try {
-      const docRef = doc(db, "lastUsed", "Main");
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        let newCode = nextID(docSnap.data()["ID"]);
-        setDoc(doc(db, "links", newCode), {
-          URL: oldLink,
-        });
-        setDoc(doc(db, "lastUsed", "Main"), {
-          ID: newCode,
-        });
-        setShowResult(true);
-        setNewLink(window.location.hostname + "/" + newCode);
-        //setNewLink("http://localhost:3000/" + newCode);
+    if (iscustom === true && custom.trim().length > 1) {
+      if (!/^[a-zA-Z0-9]+$/.test(custom)) {
+        alert("Please only type any letter or number in the custom box");
         setResolve(false);
-        showStatus(1)
-      } else {
-        console.log(docSnap.data()["ID"]);
-        console.log("No such document!");
-        showStatus(2)
-        setResolve(false);
+        return false;
       }
-    } catch (error) {
-      console.log(error);
-      setResolve(false);
-      showStatus(2)
+      try {
+        console.log("entrE?")
+        const docRef = doc(db, "linksCustom", custom);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setResolve(false);
+          alert("Code is already in use, try another diferente.")
+          return false;          
+        } else {
+          setDoc(doc(db, "linksCustom", custom), {
+            URL: oldLink,
+          });        
+          setShowResult(true);
+          setNewLink(window.location.hostname + "/-" + custom);
+          //setNewLink("http://localhost:3000/" + newCode);
+          setResolve(false);
+          showStatus(1);
+        }
+      } catch (error) {
+        console.log(error);
+        setResolve(false);
+        showStatus(2);
+      }
+    } else {
+      //for no custom
+       try {
+        const docRef = doc(db, "lastUsed", "Main");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          let newCode = nextID(docSnap.data()["ID"]);
+          setDoc(doc(db, "links", newCode), {
+            URL: oldLink,
+          });
+          setDoc(doc(db, "lastUsed", "Main"), {
+            ID: newCode,
+          });
+          setShowResult(true);
+          setNewLink(window.location.hostname + "/" + newCode);
+          //setNewLink("http://localhost:3000/" + newCode);
+          setResolve(false);
+          showStatus(1);
+        } else {
+          console.log(docSnap.data()["ID"]);
+          console.log("No such document!");
+          showStatus(2);
+          setResolve(false);
+        }
+      } catch (error) {
+        console.log(error);
+        setResolve(false);
+        showStatus(2);
+      }
     }
   };
 
@@ -124,22 +157,23 @@ function App() {
     setNewLink("");
     setResolve(false);
     setOldLink("");
+    setcustm("");
     document.getElementById("old").value = "";
+    document.getElementById("old1").value = "";
   };
   const showStatus = (typeStatus) => {
-    Setstatus(typeStatus);    
+    Setstatus(typeStatus);
     setTimeout(() => Setstatus(0), 2000);
   };
   useEffect(() => {
-   //try to valid link before load the webpage
-   const code = window.location.pathname.substring(1);
-   if (code !== "") {
+    //try to valid link before load the webpage
+    const code = window.location.pathname.substring(1);
+    if (code !== "") {      
      resolveLink(code);
-     setIsLoading(true)
-   }else{
-    setIsLoading(false)
-   }
- 
+     setIsLoading(true);
+    } else {
+      setIsLoading(false);
+    }
   }, []);
   return (
     <CustomProvider theme={theme}>
@@ -153,18 +187,20 @@ function App() {
               : `url(${DarkBackground})`,
         }}
       >
-        {(status!==0) && (
+        {status !== 0 && (
           <Notification
             id="notification"
-            type={status===1?("success"):("error")}
-            header={`Operation(${status===1?"successful":"failed"})`}
+            type={status === 1 ? "success" : "error"}
+            header={`Operation(${status === 1 ? "successful" : "failed"})`}
           >
-            {status===1?("The link has shorter successfully, please check take it."):("The proccess has failed, please contact the webpage owner.")}
+            {status === 1
+              ? "The link has shorter successfully, please check take it."
+              : "The proccess has failed, please contact the webpage owner."}
           </Notification>
         )}
         <Grid id="Content">
           <Row className="show-grid">
-            <Col xs={22} xsOffset={1} sm={20}>
+            <Col xs={22} xsOffset={1} sm={20} id="col">
               <p id="tittle">URL-Shorterner</p>
             </Col>
             <Col xs={24} sm={2} id="light">
@@ -177,8 +213,32 @@ function App() {
               />
             </Col>
           </Row>
+          <Row>
+            <Col xs={24} id="col">
+              <Toggle
+                size="lg"
+                checkedChildren="Doing a custom"
+                unCheckedChildren="Doing a random"
+                checked={iscustom === true ? true : false}
+                onClick={() => setIsCustm(!iscustom)}
+              />
+            </Col>
+          </Row>
+          <Row className="show-grid" hidden={iscustom === true ? false : true}>
+            <Col xs={20} xsOffset={2} smOffset={4} sm={14} id="col">
+              <Input
+                id="old1"
+                type="text"
+                placeholder="Insert your word for custom link, also can be numbers, no special charaters"
+                size="lg"
+                onChange={(value) => {
+                  setcustm(value);
+                }}
+              />
+            </Col>
+          </Row>
           <Row className="show-grid">
-            <Col xs={20} xsOffset={2} smOffset={3} sm={12} md={13} id="col">
+            <Col xs={20} xsOffset={2} smOffset={4} sm={14} id="col">
               <Input
                 id="old"
                 type="text"
@@ -189,9 +249,10 @@ function App() {
                 }}
               />
             </Col>
-            <Col xs={24} sm={9} md={6} id="col">
+          </Row>
+          <Row>
+            <Col xs={24} id="col">
               <Button
-                id="send1"
                 color="blue"
                 appearance="primary"
                 size="lg"
@@ -210,9 +271,9 @@ function App() {
             <Divider />
             <h1>Result:</h1>
             <Col xs={20} xsOffset={2} smOffset={8} sm={8} id="col">
-              <a id="result" href={newLink}>
+              <p id="result">
                 {newLink}
-              </a>
+              </p>
             </Col>
             <Col xs={12} smOffset={6} sm={6} id="col">
               <Button
